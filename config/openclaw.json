@@ -1,0 +1,109 @@
+{
+  "gateway": {
+    "bind": "lan",
+    "port": 18789,
+    "auth": {
+      "mode": "token"
+    },
+    "controlUi": {
+      "enabled": true,
+      "allowedOrigins": ["http://localhost:18789", "http://127.0.0.1:18789"]
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": "openrouter/anthropic/claude-sonnet-4-20250514",
+      "maxTokens": 4096,
+      "temperature": 0.3,
+      "tools": {
+        "allow": ["read"],
+        "deny": ["write", "exec", "shell", "system.run", "browser"]
+      },
+      "compaction": {
+        "mode": "safeguard",
+        "model": "openrouter/minimax/minimax-m2.5:free",
+        "threshold": 20,
+        "retainMessages": 5
+      },
+      "memory": {
+        "enabled": true,
+        "maxEntries": 1000,
+        "searchTopK": 10
+      }
+    },
+    "list": [
+      {
+        "id": "orchestrator",
+        "displayName": "Orchestrator",
+        "model": "openrouter/anthropic/claude-sonnet-4-20250514",
+        "systemPrompt": "workspace://SOUL.md",
+        "tools": {
+          "allow": ["read", "write", "memory_search", "sessions_spawn"],
+          "deny": ["exec", "shell"]
+        },
+        "routing": {
+          "default": true,
+          "instructions": "workspace://AGENTS.md"
+        }
+      },
+      {
+        "id": "ops-agent",
+        "displayName": "Ops Specialist",
+        "model": "openrouter/anthropic/claude-sonnet-4-20250514",
+        "systemPrompt": "You are an operations specialist. Execute workflows via n8n MCP tools and return structured results. Never make assumptions — ask for clarification if inputs are ambiguous.",
+        "tools": {
+          "allow": ["read", "exec"],
+          "exec": {
+            "security": "allowlist",
+            "safeBins": ["curl"],
+            "ask": "always",
+            "env": {
+              "inherit": false,
+              "allow": ["PATH", "HOME"]
+            }
+          },
+          "deny": ["write", "shell", "browser"]
+        }
+      },
+      {
+        "id": "research-agent",
+        "displayName": "Research Specialist",
+        "model": "openrouter/anthropic/claude-3.5-haiku",
+        "systemPrompt": "You are a research assistant. Search workspace files and memory to answer questions. Cite your sources. If you cannot find the answer, say so explicitly.",
+        "tools": {
+          "allow": ["read", "memory_search", "web_search", "web_fetch"],
+          "deny": ["write", "exec", "shell", "browser"]
+        }
+      }
+    ]
+  },
+  "tools": {
+    "fs": {
+      "workspaceOnly": true
+    },
+    "elevated": {
+      "enabled": false
+    }
+  },
+  "mcp": {
+    "servers": {
+      "n8n": {
+        "transport": "sse",
+        "url": "http://n8n:5678/mcp",
+        "timeout": 30000,
+        "retries": 2
+      }
+    }
+  },
+  "slack": {
+    "socketMode": true,
+    "dmPolicy": "pairing",
+    "streaming": false,
+    "threadReplies": true
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "destination": "stdout"
+  }
+}
