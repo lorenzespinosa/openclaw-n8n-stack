@@ -37,7 +37,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer YOUR_CRM_API_KEY"
+              "value": "={{$env.CRM_API_KEY}}"
             },
             {
               "name": "Content-Type",
@@ -53,7 +53,51 @@
       "name": "CRM API Lookup",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 300]
+      "position": [480, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "error-check",
+              "leftValue": "={{ $json.error !== undefined || $json.statusCode >= 400 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a1b2c3d4-1111-4000-8000-000000000010",
+      "name": "CRM Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'CRM API request failed: ' + ($json.error || $json.message || 'Unknown error'), status_code: $json.statusCode || null } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "a1b2c3d4-1111-4000-8000-000000000011",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 440]
     },
     {
       "parameters": {
@@ -63,7 +107,7 @@
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 300]
+      "position": [900, 200]
     },
     {
       "parameters": {
@@ -77,12 +121,12 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [960, 300]
+      "position": [1140, 200]
     },
     {
       "parameters": {
-        "content": "## MCP: CRM Contact Lookup\n\n**Purpose:** Replace LLM doing CRM lookups via OpenClaw MCP.\n\n**Token savings:** ~5,000 tokens per call\n\n**Flow:** Webhook (POST /mcp/crm-lookup) -> CRM API -> Format -> Respond\n\n**Expected payload:**\n```json\n{\n  \"email\": \"client@example.com\",\n  \"phone\": \"+14075551234\"\n}\n```\n\n**Setup:**\n1. Replace CRM API URL with your Lawmatics/CRM endpoint\n2. Set Authorization header with real API key\n3. Activate workflow",
-        "height": 380,
+        "content": "## MCP: CRM Contact Lookup\n\n**Purpose:** Replace LLM doing CRM lookups via OpenClaw MCP.\n\n**Token savings:** ~5,000 tokens per call\n\n**Flow:** Webhook (POST /mcp/crm-lookup) -> CRM API -> Error Check -> Format -> Respond\n\n**Expected payload:**\n```json\n{\n  \"email\": \"client@example.com\",\n  \"phone\": \"+14075551234\"\n}\n```\n\n**Setup:**\n1. Replace CRM API URL with your Lawmatics/CRM endpoint\n2. Set `CRM_API_KEY` env var (or better: use n8n credentials for production)\n3. Activate workflow\n\n**Note:** For production, replace the env var Authorization header with a proper n8n HTTP credential. Env vars are for quick testing only.",
+        "height": 420,
         "width": 340
       },
       "id": "a1b2c3d4-1111-4000-8000-000000000005",
@@ -108,6 +152,24 @@
       "main": [
         [
           {
+            "node": "CRM Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM Error?": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Format Response",
             "type": "main",
             "index": 0
@@ -131,10 +193,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1",
-  "meta": {
-    "instanceId": "openclaw-n8n-stack"
-  },
+  "meta": {},
   "tags": [
     {
       "name": "mcp"

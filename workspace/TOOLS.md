@@ -4,14 +4,16 @@
 
 These n8n workflows are available as MCP tools. They replace LLM calls with deterministic API calls to save tokens.
 
-| Workflow | MCP Path | Purpose | Tokens Saved |
-|----------|----------|---------|-------------|
-| CRM Lookup | /mcp/crm-lookup | Fetch contact/client data | ~5K/call |
-| SMS Send | /mcp/sms-send | Send SMS via OpenPhone (TCPA checked) | ~3K/call |
-| Airtable Write | /mcp/staging-write | Write records to Airtable staging | ~4K/call |
-| Calendar Check | /mcp/calendar-check | Check availability | ~3K/call |
-| Audit Log | /mcp/audit-log | Write PII-masked audit record | ~2K/call |
-| Health Check | /mcp/health-check | Ping all connected services | ~1K/call |
+| Workflow | File | Webhook Path | Purpose | Tokens Saved |
+|----------|------|-------------|---------|-------------|
+| CRM Lookup | `crm-contact-lookup.json` | POST /webhook/crm-lookup | Fetch contact/client data | ~5K/call |
+| SMS Send | `sms-send-openphone.json` | POST /webhook/sms-send | Send SMS via OpenPhone (TCPA checked) | ~3K/call |
+| Airtable Write | `airtable-staging-write.json` | POST /webhook/staging-write | Write records to Airtable staging | ~4K/call |
+| Calendar Check | `calendar-availability-check.json` | POST /webhook/calendar-check | Check availability | ~3K/call |
+| Audit Log | `audit-log-writer.json` | POST /webhook/audit-log | Write PII-masked audit record | ~2K/call |
+| Health Check | `service-health-check.json` | *(scheduled, no webhook)* | Ping all services, Slack alert on failure | N/A |
+
+**Note:** Webhook paths are configured in n8n when you activate each workflow. The paths above are the defaults set in the workflow JSON files. MCP exposes these as tools once the n8n MCP server is connected.
 
 ## When to Use n8n vs AI
 

@@ -5,6 +5,9 @@
 #   cp .env.example .env
 #   # Edit .env with your values
 #   docker compose up -d
+#
+# Requires Docker Compose v2 (docker compose, not docker-compose)
+# Minimum 2 GB RAM recommended
 
 volumes:
   openclaw_data:
@@ -17,7 +20,7 @@ networks:
 
 services:
 
-  # ── PostgreSQL — n8n persistence ──
+  # ── PostgreSQL — n8n persistence ──────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -34,42 +37,53 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    # NOTE: No ports exposed — Postgres is only reachable within the Docker network.
+    # This is intentional for security.
 
-  # ── n8n — Workflow automation engine ──
+  # ── n8n — Workflow automation engine ──────────────────────────────────
   n8n:
     image: n8nio/n8n:latest
     restart: unless-stopped
     networks:
       - stack
     ports:
-      - "${N8N_PORT:-5678}:5678"
+      # Bind to localhost only — not exposed to external network.
+      # For production behind a reverse proxy, change to 0.0.0.0 and add auth.
+      - "127.0.0.1:${N8N_PORT:-5678}:5678"
     environment:
+      # Database
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_USER=${POSTGRES_USER:-n8n}
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
       - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-n8n}
+      # n8n config
       - N8N_HOST=${N8N_HOST:-localhost}
       - N8N_PORT=5678
       - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
       - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - GENERIC_TIMEZONE=${TZ:-America/New_York}
+      # MCP server for OpenClaw integration
       - N8N_MCP_SERVER_ENABLED=${N8N_MCP_SERVER_ENABLED:-true}
+      # Authentication — REQUIRED for any non-localhost deployment
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-true}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:5678/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
 
-  # ── OpenClaw — AI agent gateway ──
+  # ── OpenClaw — AI agent gateway ──────────────────────────────────────
   openclaw-gateway:
     image: ghcr.io/openclaw/openclaw:latest
     restart: unless-stopped
@@ -77,7 +91,8 @@ services:
     networks:
       - stack
     ports:
-      - "${OPENCLAW_PORT:-18789}:18789"
+      # Bind to localhost only — use a reverse proxy (nginx/Caddy) for external access
+      - "127.0.0.1:${OPENCLAW_PORT:-18789}:18789"
     environment:
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
@@ -93,7 +108,7 @@ services:
       n8n:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:18789/healthz || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:18789/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 3

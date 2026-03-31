@@ -193,8 +193,10 @@ docker compose logs postgres
 docker compose logs n8n
 docker compose logs openclaw-gateway
 
-# Common fix: ensure .env exists and has required values
-cat .env | grep -E "POSTGRES_PASSWORD|N8N_ENCRYPTION_KEY|OPENCLAW_GATEWAY_TOKEN"
+# Common fix: ensure .env exists and all required values are set
+for var in POSTGRES_PASSWORD N8N_ENCRYPTION_KEY OPENCLAW_GATEWAY_TOKEN OPENROUTER_API_KEY; do
+  grep -q "^${var}=.\+" .env 2>/dev/null && echo "SET: $var" || echo "MISSING: $var"
+done
 ```
 
 ### n8n health check fails

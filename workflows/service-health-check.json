@@ -123,7 +123,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "url": "={{$env.SLACK_WEBHOOK_URL}}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -144,12 +144,13 @@
       "name": "Slack Alert",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1440, 240]
+      "position": [1440, 240],
+      "continueOnFail": true
     },
     {
       "parameters": {
-        "content": "## Service Health Check\n\n**Purpose:** Proactive monitoring of OpenClaw stack services.\nNo LLM involvement - pure infrastructure monitoring.\n\n**Schedule:** Every 15 minutes\n\n**Services checked:**\n1. OpenClaw API (healthz endpoint)\n2. n8n (healthz endpoint)\n3. PostgreSQL (connection check)\n\n**Alert:** Sends Slack notification if any service is unhealthy.\n\n**Setup:**\n1. Update service URLs to match your docker-compose network\n2. Set Slack webhook URL\n3. Activate workflow\n\n**Note:** This is a scheduled workflow, NOT webhook-triggered.\nNo Respond to Webhook node needed.",
-        "height": 400,
+        "content": "## Service Health Check\n\n**Purpose:** Proactive monitoring of OpenClaw stack services.\nNo LLM involvement - pure infrastructure monitoring.\n\n**Schedule:** Every 15 minutes\n\n**Services checked:**\n1. OpenClaw API (healthz endpoint)\n2. n8n (healthz endpoint)\n3. PostgreSQL (connection check)\n\n**Alert:** Sends Slack notification if any service is unhealthy.\n\n**Setup:**\n1. Update service URLs to match your docker-compose network\n2. Set `SLACK_WEBHOOK_URL` env var (or better: use n8n Slack credential for production)\n3. Activate workflow\n\n**Note:** This is a scheduled workflow, NOT webhook-triggered.\nNo Respond to Webhook node needed.\n\nFor production, replace the env var Slack webhook URL with a proper n8n Slack credential. Env vars are for quick testing only.",
+        "height": 440,
         "width": 380
       },
       "id": "f6a7b8c9-6666-4000-8000-000000000008",
@@ -253,10 +254,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1",
-  "meta": {
-    "instanceId": "openclaw-n8n-stack"
-  },
+  "meta": {},
   "tags": [
     {
       "name": "monitoring"

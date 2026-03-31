@@ -27,7 +27,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Add timestamp, metadata, and structure the audit log entry\nconst input = $input.first().json;\n\nconst logEntry = {\n  log_id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),\n  timestamp: new Date().toISOString(),\n  action: input.action,\n  actor: input.actor,\n  data: input.data_masked,\n  metadata: {\n    source: 'openclaw-mcp',\n    workflow: 'audit-log-writer',\n    pii_masked: input.pii_masked,\n    original_field_count: input.data_original_keys.length,\n    fields: input.data_original_keys,\n    environment: 'production',\n    version: '1.0'\n  }\n};\n\nreturn [{ json: logEntry }];"
+        "jsCode": "// Add timestamp, metadata, and structure the audit log entry\nconst input = $input.first().json;\n\nconst logEntry = {\n  log_id: 'AUD-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + Math.random().toString(36).substr(2, 12),\n  timestamp: new Date().toISOString(),\n  action: input.action,\n  actor: input.actor,\n  data: input.data_masked,\n  metadata: {\n    source: 'openclaw-mcp',\n    workflow: 'audit-log-writer',\n    pii_masked: input.pii_masked,\n    original_field_count: input.data_original_keys.length,\n    fields: input.data_original_keys,\n    environment: 'production',\n    version: '1.0'\n  }\n};\n\nreturn [{ json: logEntry }];"
       },
       "id": "e5f6a7b8-5555-4000-8000-000000000003",
       "name": "Add Timestamp & Metadata",
@@ -44,7 +44,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer YOUR_AIRTABLE_API_KEY"
+              "value": "={{$env.AIRTABLE_API_KEY}}"
             },
             {
               "name": "Content-Type",
@@ -63,7 +63,51 @@
       "name": "Write to Audit Log",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [960, 300]
+      "position": [960, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "audit-error-check",
+              "leftValue": "={{ $json.error !== undefined || $json.statusCode >= 400 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "e5f6a7b8-5555-4000-8000-000000000010",
+      "name": "Audit Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1140, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Audit log write failed: ' + ($json.error || $json.message || 'Unknown error'), status_code: $json.statusCode || null } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "e5f6a7b8-5555-4000-8000-000000000011",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1380, 440]
     },
     {
       "parameters": {
@@ -77,12 +121,12 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1200, 300]
+      "position": [1380, 200]
     },
     {
       "parameters": {
-        "content": "## MCP: Audit Log Writer\n\n**Purpose:** Replace LLM writing audit logs. Auto-masks PII.\n\n**Token savings:** ~2,000 tokens per call\n\n**PII Masking Rules:**\n- Emails: `john@example.com` -> `***@***.com`\n- Phones: `+1 (407) 555-1234` -> `***-***-1234`\n- SSN, DOB, Address fields: `[REDACTED]`\n- Recursive masking on nested objects\n\n**Expected payload:**\n```json\n{\n  \"action\": \"contact_created\",\n  \"actor\": \"openclaw-agent\",\n  \"data\": {\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"+14075551234\",\n    \"case_type\": \"PI\"\n  }\n}\n```\n\n**Setup:**\n1. Set Airtable base ID and API key\n2. Create 'Audit Log' table with fields: Log ID, Timestamp, Action, Actor, Data, Source, Environment\n3. Activate workflow",
-        "height": 480,
+        "content": "## MCP: Audit Log Writer\n\n**Purpose:** Replace LLM writing audit logs. Auto-masks PII.\n\n**Token savings:** ~2,000 tokens per call\n\n**PII Masking Rules:**\n- Emails: `john@example.com` -> `***@***.com`\n- Phones: `+1 (407) 555-1234` -> `***-***-1234`\n- SSN, DOB, Address fields: `[REDACTED]`\n- Recursive masking on nested objects\n\n**Expected payload:**\n```json\n{\n  \"action\": \"contact_created\",\n  \"actor\": \"openclaw-agent\",\n  \"data\": {\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"+14075551234\",\n    \"case_type\": \"PI\"\n  }\n}\n```\n\n**Setup:**\n1. Set `AIRTABLE_API_KEY` env var and update base ID in URL (or better: use n8n HTTP credentials for production)\n2. Create 'Audit Log' table with fields: Log ID, Timestamp, Action, Actor, Data, Source, Environment\n3. Activate workflow\n\n**Note:** For production, replace the env var Authorization header with a proper n8n HTTP credential. Env vars are for quick testing only.",
+        "height": 520,
         "width": 380
       },
       "id": "e5f6a7b8-5555-4000-8000-000000000006",
@@ -130,6 +174,24 @@
       "main": [
         [
           {
+            "node": "Audit Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audit Error?": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Respond to Webhook",
             "type": "main",
             "index": 0
@@ -142,10 +204,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1",
-  "meta": {
-    "instanceId": "openclaw-n8n-stack"
-  },
+  "meta": {},
   "tags": [
     {
       "name": "mcp"

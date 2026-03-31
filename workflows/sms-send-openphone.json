@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// TCPA Compliance Check\n// Business hours: Mon-Sat 8AM-7PM ET\n// Check for STOP/opt-out keywords in recent history\n\nconst input = $input.first().json.body;\nconst errors = [];\n\n// Validate required fields\nif (!input.to) errors.push('Missing required field: to');\nif (!input.message) errors.push('Missing required field: message');\nif (!input.from) errors.push('Missing required field: from');\n\nif (errors.length > 0) {\n  return [{ json: { tcpa_pass: false, reason: errors.join('; '), error_type: 'validation' } }];\n}\n\n// Normalize phone to E.164\nlet phone = input.to.replace(/[^\\d+]/g, '');\nif (!phone.startsWith('+')) phone = '+1' + phone;\nif (phone.length < 11) {\n  return [{ json: { tcpa_pass: false, reason: 'Invalid phone number format', error_type: 'validation' } }];\n}\n\n// Check business hours in ET (America/New_York)\nconst now = new Date();\nconst etOptions = { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', weekday: 'long', hour12: false };\nconst etParts = new Intl.DateTimeFormat('en-US', etOptions).formatToParts(now);\n\nconst hour = parseInt(etParts.find(p => p.type === 'hour').value);\nconst minute = parseInt(etParts.find(p => p.type === 'minute').value);\nconst weekday = etParts.find(p => p.type === 'weekday').value;\n\nconst isSunday = weekday === 'Sunday';\nconst beforeHours = hour < 8;\nconst afterHours = hour >= 19;\n\nif (isSunday) {\n  return [{ json: { tcpa_pass: false, reason: 'TCPA: Cannot send SMS on Sundays', error_type: 'tcpa', current_time_et: `${weekday} ${hour}:${String(minute).padStart(2,'0')}` } }];\n}\n\nif (beforeHours || afterHours) {\n  return [{ json: { tcpa_pass: false, reason: `TCPA: Outside business hours (Mon-Sat 8AM-7PM ET). Current: ${hour}:${String(minute).padStart(2,'0')} ET`, error_type: 'tcpa', current_time_et: `${weekday} ${hour}:${String(minute).padStart(2,'0')}` } }];\n}\n\n// Check for STOP words in the opt-out list (if provided)\nconst stopWords = ['stop', 'unsubscribe', 'cancel', 'quit', 'opt out', 'optout'];\nconst optedOut = input.opted_out || false;\nif (optedOut) {\n  return [{ json: { tcpa_pass: false, reason: 'TCPA: Recipient has opted out of SMS communications', error_type: 'tcpa' } }];\n}\n\n// TCPA passed\nreturn [{\n  json: {\n    tcpa_pass: true,\n    to: phone,\n    from: input.from,\n    message: input.message,\n    checked_at: now.toISOString(),\n    timezone_check: `${weekday} ${hour}:${String(minute).padStart(2,'0')} ET`\n  }\n}];"
+        "jsCode": "// TCPA Compliance Check\n// Business hours: Mon-Sat 8AM-7PM ET\n// Check for STOP/opt-out keywords in recent history\n\nconst input = $input.first().json.body;\nconst errors = [];\n\n// Validate required fields\nif (!input.to) errors.push('Missing required field: to');\nif (!input.message) errors.push('Missing required field: message');\nif (!input.from) errors.push('Missing required field: from');\n\nif (errors.length > 0) {\n  return [{ json: { tcpa_pass: false, reason: errors.join('; '), error_type: 'validation' } }];\n}\n\n// Normalize phone to E.164\nlet phone = input.to.replace(/[^\\d+]/g, '');\nif (!phone.startsWith('+')) phone = '+1' + phone;\nif (phone.length < 11) {\n  return [{ json: { tcpa_pass: false, reason: 'Invalid phone number format', error_type: 'validation' } }];\n}\n\n// Check business hours in ET (America/New_York)\nconst now = new Date();\nconst etOptions = { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', weekday: 'long', hour12: false };\nconst etParts = new Intl.DateTimeFormat('en-US', etOptions).formatToParts(now);\n\nconst hour = parseInt(etParts.find(p => p.type === 'hour').value);\nconst minute = parseInt(etParts.find(p => p.type === 'minute').value);\nconst weekday = etParts.find(p => p.type === 'weekday').value;\n\nconst isSunday = weekday === 'Sunday';\nconst beforeHours = hour < 8;\nconst afterHours = hour >= 19;\n\nif (isSunday) {\n  return [{ json: { tcpa_pass: false, reason: 'TCPA: Cannot send SMS on Sundays', error_type: 'tcpa', current_time_et: `${weekday} ${hour}:${String(minute).padStart(2,'0')}` } }];\n}\n\nif (beforeHours || afterHours) {\n  return [{ json: { tcpa_pass: false, reason: `TCPA: Outside business hours (Mon-Sat 8AM-7PM ET). Current: ${hour}:${String(minute).padStart(2,'0')} ET`, error_type: 'tcpa', current_time_et: `${weekday} ${hour}:${String(minute).padStart(2,'0')}` } }];\n}\n\n// Check for STOP words in the opt-out list (if provided)\nconst stopWords = ['stop', 'unsubscribe', 'cancel', 'quit', 'opt out', 'optout'];\nconst optedOut = input.opted_out !== false; // Block unless explicitly confirmed opted-in\nif (optedOut) {\n  return [{ json: { tcpa_pass: false, reason: 'TCPA: Recipient has opted out of SMS communications or opt-in not confirmed', error_type: 'tcpa' } }];\n}\n\n// TCPA passed\nreturn [{\n  json: {\n    tcpa_pass: true,\n    to: phone,\n    from: input.from,\n    message: input.message,\n    checked_at: now.toISOString(),\n    timezone_check: `${weekday} ${hour}:${String(minute).padStart(2,'0')} ET`\n  }\n}];"
       },
       "id": "b2c3d4e5-2222-4000-8000-000000000002",
       "name": "TCPA Compliance Check",
@@ -63,7 +63,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer YOUR_OPENPHONE_API_KEY"
+              "value": "={{$env.OPENPHONE_API_KEY}}"
             },
             {
               "name": "Content-Type",
@@ -96,7 +96,51 @@
       "name": "Send SMS via OpenPhone",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [960, 200]
+      "position": [960, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "sms-error-check",
+              "leftValue": "={{ $json.error !== undefined || $json.statusCode >= 400 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "b2c3d4e5-2222-4000-8000-000000000010",
+      "name": "SMS Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1140, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'OpenPhone API request failed: ' + ($json.error || $json.message || 'Unknown error'), status_code: $json.statusCode || null } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "b2c3d4e5-2222-4000-8000-000000000011",
+      "name": "Respond SMS Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1380, 300]
     },
     {
       "parameters": {
@@ -110,7 +154,7 @@
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1200, 200]
+      "position": [1380, 100]
     },
     {
       "parameters": {
@@ -128,8 +172,8 @@
     },
     {
       "parameters": {
-        "content": "## MCP: SMS Send via OpenPhone\n\n**Purpose:** Replace LLM composing & sending SMS. TCPA compliance built in.\n\n**Token savings:** ~3,000 tokens per call\n\n**TCPA Rules Enforced:**\n- Mon-Sat 8AM-7PM ET only\n- No Sunday sends\n- Opt-out / STOP word check\n- Phone number validation (E.164)\n\n**Expected payload:**\n```json\n{\n  \"to\": \"+14075551234\",\n  \"from\": \"+14075550000\",\n  \"message\": \"Your consultation is confirmed for tomorrow at 2pm.\",\n  \"opted_out\": false\n}\n```\n\n**Setup:**\n1. Set OpenPhone API key in Authorization header\n2. Activate workflow",
-        "height": 430,
+        "content": "## MCP: SMS Send via OpenPhone\n\n**Purpose:** Replace LLM composing & sending SMS. TCPA compliance built in.\n\n**Token savings:** ~3,000 tokens per call\n\n**TCPA Rules Enforced:**\n- Mon-Sat 8AM-7PM ET only\n- No Sunday sends\n- Opt-out / STOP word check (blocks unless opted_out is explicitly false)\n- Phone number validation (E.164)\n\n**Expected payload:**\n```json\n{\n  \"to\": \"+14075551234\",\n  \"from\": \"+14075550000\",\n  \"message\": \"Your consultation is confirmed for tomorrow at 2pm.\",\n  \"opted_out\": false\n}\n```\n\n**Setup:**\n1. Set `OPENPHONE_API_KEY` env var (or better: use n8n HTTP credentials for production)\n2. Activate workflow\n\n**Note:** For production, replace the env var Authorization header with a proper n8n HTTP credential. Env vars are for quick testing only.",
+        "height": 480,
         "width": 360
       },
       "id": "b2c3d4e5-2222-4000-8000-000000000007",
@@ -184,6 +228,24 @@
       "main": [
         [
           {
+            "node": "SMS Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMS Error?": {
+      "main": [
+        [
+          {
+            "node": "Respond SMS Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Respond Success",
             "type": "main",
             "index": 0
@@ -196,10 +258,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1",
-  "meta": {
-    "instanceId": "openclaw-n8n-stack"
-  },
+  "meta": {},
   "tags": [
     {
       "name": "mcp"

@@ -63,7 +63,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer YOUR_AIRTABLE_API_KEY"
+              "value": "={{$env.AIRTABLE_API_KEY}}"
             },
             {
               "name": "Content-Type",
@@ -82,7 +82,51 @@
       "name": "Write to Airtable",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [960, 200]
+      "position": [960, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "airtable-error-check",
+              "leftValue": "={{ $json.error !== undefined || $json.statusCode >= 400 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "c3d4e5f6-3333-4000-8000-000000000010",
+      "name": "Airtable Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1140, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Airtable API request failed: ' + ($json.error || $json.message || 'Unknown error'), status_code: $json.statusCode || null } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "c3d4e5f6-3333-4000-8000-000000000011",
+      "name": "Respond API Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1380, 300]
     },
     {
       "parameters": {
@@ -96,7 +140,7 @@
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1200, 200]
+      "position": [1380, 100]
     },
     {
       "parameters": {
@@ -114,8 +158,8 @@
     },
     {
       "parameters": {
-        "content": "## MCP: Airtable Staging Write\n\n**Purpose:** Replace LLM doing data writes to Airtable staging buffer.\n\n**Token savings:** ~4,000 tokens per call\n\n**Flow:** Webhook -> Validate -> IF valid -> Airtable API -> Respond with record ID\n\n**Expected payload:**\n```json\n{\n  \"table\": \"Intake Staging\",\n  \"base_id\": \"appXXXXXXXXXXXXXX\",\n  \"fields\": {\n    \"Name\": \"John Doe\",\n    \"Email\": \"john@example.com\",\n    \"Phone\": \"+14075551234\",\n    \"Case Type\": \"Personal Injury\",\n    \"Source\": \"OpenClaw Chat\"\n  }\n}\n```\n\n**Setup:**\n1. Set Airtable API key\n2. Update base_id default if using single base\n3. Activate workflow",
-        "height": 420,
+        "content": "## MCP: Airtable Staging Write\n\n**Purpose:** Replace LLM doing data writes to Airtable staging buffer.\n\n**Token savings:** ~4,000 tokens per call\n\n**Flow:** Webhook -> Validate -> IF valid -> Airtable API -> Error Check -> Respond with record ID\n\n**Expected payload:**\n```json\n{\n  \"table\": \"Intake Staging\",\n  \"base_id\": \"appXXXXXXXXXXXXXX\",\n  \"fields\": {\n    \"Name\": \"John Doe\",\n    \"Email\": \"john@example.com\",\n    \"Phone\": \"+14075551234\",\n    \"Case Type\": \"Personal Injury\",\n    \"Source\": \"OpenClaw Chat\"\n  }\n}\n```\n\n**Setup:**\n1. Set `AIRTABLE_API_KEY` env var (or better: use n8n HTTP credentials for production)\n2. Update base_id default if using single base\n3. Activate workflow\n\n**Note:** For production, replace the env var Authorization header with a proper n8n HTTP credential. Env vars are for quick testing only.",
+        "height": 460,
         "width": 360
       },
       "id": "c3d4e5f6-3333-4000-8000-000000000006",
@@ -170,6 +214,24 @@
       "main": [
         [
           {
+            "node": "Airtable Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Error?": {
+      "main": [
+        [
+          {
+            "node": "Respond API Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Respond Success",
             "type": "main",
             "index": 0
@@ -182,10 +244,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1",
-  "meta": {
-    "instanceId": "openclaw-n8n-stack"
-  },
+  "meta": {},
   "tags": [
     {
       "name": "mcp"

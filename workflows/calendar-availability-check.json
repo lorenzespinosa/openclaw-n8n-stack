@@ -24,7 +24,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer YOUR_GOOGLE_CALENDAR_TOKEN"
+              "value": "={{$env.GOOGLE_CALENDAR_TOKEN}}"
             },
             {
               "name": "Content-Type",
@@ -43,7 +43,51 @@
       "name": "Google Calendar FreeBusy",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 300]
+      "position": [480, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "calendar-error-check",
+              "leftValue": "={{ $json.error !== undefined || $json.statusCode >= 400 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "d4e5f6a7-4444-4000-8000-000000000010",
+      "name": "Calendar Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Google Calendar API request failed: ' + ($json.error || $json.message || 'Unknown error'), status_code: $json.statusCode || null } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "d4e5f6a7-4444-4000-8000-000000000011",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 440]
     },
     {
       "parameters": {
@@ -53,7 +97,7 @@
       "name": "Format Available Slots",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 300]
+      "position": [900, 200]
     },
     {
       "parameters": {
@@ -67,12 +111,12 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [960, 300]
+      "position": [1140, 200]
     },
     {
       "parameters": {
-        "content": "## MCP: Calendar Availability Check\n\n**Purpose:** Replace LLM checking calendar availability.\n\n**Token savings:** ~3,000 tokens per call\n\n**Flow:** Webhook -> Google Calendar FreeBusy -> Parse & find slots -> Respond\n\n**Expected payload:**\n```json\n{\n  \"calendar_id\": \"primary\",\n  \"start_date\": \"2026-04-01T00:00:00Z\",\n  \"end_date\": \"2026-04-07T23:59:59Z\",\n  \"duration_minutes\": 30,\n  \"business_start_hour\": 9,\n  \"business_end_hour\": 17\n}\n```\n\n**Returns:** Up to 20 available slots within business hours (Mon-Fri).\n\n**Setup:**\n1. Set Google Calendar OAuth token\n2. Update calendar_id if not using primary\n3. Activate workflow",
-        "height": 400,
+        "content": "## MCP: Calendar Availability Check\n\n**Purpose:** Replace LLM checking calendar availability.\n\n**Token savings:** ~3,000 tokens per call\n\n**Flow:** Webhook -> Google Calendar FreeBusy -> Error Check -> Parse & find slots -> Respond\n\n**Expected payload:**\n```json\n{\n  \"calendar_id\": \"primary\",\n  \"start_date\": \"2026-04-01T00:00:00Z\",\n  \"end_date\": \"2026-04-07T23:59:59Z\",\n  \"duration_minutes\": 30,\n  \"business_start_hour\": 9,\n  \"business_end_hour\": 17\n}\n```\n\n**Returns:** Up to 20 available slots within business hours (Mon-Fri).\n\n**Setup:**\n1. Set `GOOGLE_CALENDAR_TOKEN` env var (or better: use n8n Google OAuth2 credential for production)\n2. Update calendar_id if not using primary\n3. Activate workflow\n\n**Note:** For production, replace the env var Authorization header with a proper n8n Google OAuth2 credential. Env vars are for quick testing only.",
+        "height": 460,
         "width": 360
       },
       "id": "d4e5f6a7-4444-4000-8000-000000000005",
@@ -98,6 +142,24 @@
       "main": [
         [
           {
+            "node": "Calendar Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Error?": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Format Available Slots",
             "type": "main",
             "index": 0
@@ -121,10 +183,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1",
-  "meta": {
-    "instanceId": "openclaw-n8n-stack"
-  },
+  "meta": {},
   "tags": [
     {
       "name": "mcp"
