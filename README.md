@@ -68,6 +68,34 @@ curl http://localhost:18789/healthz   # OpenClaw
 | n8n | http://localhost:5678 | Workflow editor & webhook endpoints |
 | OpenClaw | http://localhost:18789 | AI agent gateway & control UI |
 
+### Import the bundled workflows (optional)
+
+The `workflows/` directory ships six ready-made n8n workflows (see [Bundled Workflows](#bundled-workflows)). To load them into your running n8n instance:
+
+```bash
+# 1. Open n8n → Settings → API → Create API Key
+# 2. Add it to .env:  N8N_API_KEY=your-key-here
+# 3. Import
+./scripts/init-workflows.sh
+```
+
+The script is **not idempotent** — running it twice creates duplicate workflows. After import, configure each workflow's credentials in the n8n UI and test with a sample payload before activating.
+
+### Helper commands
+
+A `Makefile` wraps the common `docker compose` operations:
+
+```bash
+make up        # start the stack
+make ps        # service status
+make health    # hit both health endpoints
+make logs      # tail all logs
+make import    # import bundled workflows
+make down      # stop (keeps data)
+make reset     # wipe volumes and start fresh
+make help      # list everything
+```
+
 ---
 
 ## Architecture: The Token-Saving Pattern
@@ -98,6 +126,7 @@ Every CRM lookup, SMS send, database write, and calendar check goes through n8n 
 |----------|----------|---------|-------------|
 | `POSTGRES_PASSWORD` | Yes | -- | PostgreSQL password |
 | `N8N_ENCRYPTION_KEY` | Yes | -- | Encrypts n8n credentials at rest |
+| `N8N_BASIC_AUTH_PASSWORD` | Yes | -- | Password for the n8n editor login |
 | `OPENCLAW_GATEWAY_TOKEN` | Yes | -- | Auth token for OpenClaw API |
 | `OPENROUTER_API_KEY` | Yes* | -- | OpenRouter API key for AI models |
 | `ANTHROPIC_API_KEY` | No | -- | Direct Anthropic API key (alternative to OpenRouter) |
@@ -108,6 +137,9 @@ Every CRM lookup, SMS send, database write, and calendar check goes through n8n 
 | `N8N_PROTOCOL` | No | `http` | `http` or `https` |
 | `WEBHOOK_URL` | No | `http://localhost:5678/` | n8n webhook base URL |
 | `N8N_MCP_SERVER_ENABLED` | No | `true` | Enable n8n MCP server |
+| `N8N_BASIC_AUTH_ACTIVE` | No | `true` | Require login for the n8n editor |
+| `N8N_BASIC_AUTH_USER` | No | `admin` | Username for the n8n editor login |
+| `N8N_API_KEY` | No | -- | n8n API key — only needed to run `scripts/init-workflows.sh` |
 | `OPENCLAW_PORT` | No | `18789` | OpenClaw exposed port |
 | `SLACK_BOT_TOKEN` | No | -- | Slack bot token (optional) |
 | `SLACK_APP_TOKEN` | No | -- | Slack app token for socket mode |
@@ -156,18 +188,22 @@ Three agents are pre-configured in `config/openclaw.json`:
 
 ---
 
-## Token Savings
+## Bundled Workflows
 
-Delegating deterministic tasks to n8n eliminates token waste:
+Six workflows ship in `workflows/`. The five `MCP:` workflows expose a webhook the agent calls instead of generating and parsing API requests itself; the health check runs on a schedule. Import them with `scripts/init-workflows.sh` (see [Quick Start](#import-the-bundled-workflows-optional)).
 
-| Task | Without n8n | With n8n | Savings |
-|------|------------|----------|---------|
-| 100 CRM lookups/day | $30/mo | $0 | $30/mo |
-| 50 SMS sends/day | $15/mo | $0 | $15/mo |
-| 200 audit logs/day | $12/mo | $0 | $12/mo |
-| **Total** | **$115/mo** | **$50/mo** | **$65/mo (57%)** |
+| Workflow | File | Trigger | Purpose |
+|----------|------|---------|---------|
+| CRM Contact Lookup | `crm-contact-lookup.json` | `POST /webhook/crm-lookup` | Fetch contact/client data |
+| SMS Send (OpenPhone) | `sms-send-openphone.json` | `POST /webhook/sms-send` | Send SMS via OpenPhone |
+| Airtable Staging Write | `airtable-staging-write.json` | `POST /webhook/staging-write` | Write records to Airtable staging |
+| Calendar Availability Check | `calendar-availability-check.json` | `POST /webhook/calendar-check` | Check calendar availability |
+| Audit Log Writer | `audit-log-writer.json` | `POST /webhook/audit-log` | Write a PII-masked audit record |
+| Service Health Check | `service-health-check.json` | Schedule | Ping services, alert on failure |
 
-The remaining $50/mo covers AI reasoning tasks that genuinely need LLM capabilities.
+Webhook paths are the defaults baked into each JSON file; you can rename them in the n8n UI. Each workflow needs its own credentials configured before it will run.
+
+> **Why route through n8n?** A deterministic task (a CRM lookup, an SMS send, a database write) costs roughly zero LLM tokens when it runs as an n8n workflow, versus thousands of tokens when the model generates the request and parses the response itself. The AI is reserved for reasoning, drafting, and decisions. Actual savings depend entirely on your call volume and model pricing.
 
 ---
 
@@ -246,7 +282,7 @@ docker compose up -d     # Fresh start
 <!-- hire-cta -->
 ## 👋 Built by Lorenz Espinosa
 
-I design and ship production automation for ops-heavy businesses — webhook-driven, AI-powered systems with validation, retries, and audit logging baked in. **50+ processes automated · $800K+ saved.**
+I design and ship production automation for ops-heavy businesses — webhook-driven, AI-powered systems with validation, retries, and audit logging baked in.
 
 **Want something like this built for your team?**
 

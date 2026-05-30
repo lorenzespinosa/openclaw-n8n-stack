@@ -28,11 +28,6 @@ These n8n workflows are available as MCP tools. They replace LLM calls with dete
 | Make a decision | AI | Requires judgment |
 | Classify/categorize | AI | Requires understanding |
 
-## Estimated Monthly Savings
+## Why Route to n8n
 
-| Scenario | Without n8n | With n8n | Savings |
-|----------|------------|----------|---------|
-| 100 CRM lookups/day | $30/mo | $0 | $30/mo |
-| 50 SMS sends/day | $15/mo | $0 | $15/mo |
-| 200 audit logs/day | $12/mo | $0 | $12/mo |
-| **Total** | **$115/mo** | **$50/mo** | **$65/mo (57%)** |
+A deterministic task costs roughly zero LLM tokens when it runs as an n8n workflow, versus thousands of tokens when the model generates the request and parses the response itself. Reserve the model for reasoning, drafting, and decisions. The per-call estimates above are illustrative; actual savings scale with your call volume and model pricing.
