@@ -125,7 +125,7 @@
     },
     {
       "parameters": {
-        "content": "## MCP: CRM Contact Lookup\n\n**Purpose:** Replace LLM doing CRM lookups via OpenClaw MCP.\n\n**Token savings:** ~5,000 tokens per call\n\n**Flow:** Webhook (POST /mcp/crm-lookup) -> CRM API -> Error Check -> Format -> Respond\n\n**Expected payload:**\n```json\n{\n  \"email\": \"client@example.com\",\n  \"phone\": \"+14075551234\"\n}\n```\n\n**Setup:**\n1. Replace CRM API URL with your Lawmatics/CRM endpoint\n2. Set `CRM_API_KEY` env var (or better: use n8n credentials for production)\n3. Activate workflow\n\n**Note:** For production, replace the env var Authorization header with a proper n8n HTTP credential. Env vars are for quick testing only.",
+        "content": "## MCP: CRM Contact Lookup\n\n**Purpose:** Example CRM lookup through a configured n8n endpoint.\n\n**Token savings:** Not measured for a complete task.\n\n**Flow:** Webhook (POST /mcp/crm-lookup) -> CRM API -> Error Check -> Format -> Respond\n\n**Expected payload:**\n```json\n{\n  \"email\": \"client@example.com\",\n  \"phone\": \"+14075551234\"\n}\n```\n\n**Setup:**\n1. Replace CRM API URL with your configured test CRM endpoint\n2. Set `CRM_API_KEY` env var (or better: use n8n credentials for production)\n3. Activate workflow\n\n**Note:** For production, replace the env var Authorization header with a proper n8n HTTP credential. Env vars are for quick testing only.",
         "height": 420,
         "width": 340
       },

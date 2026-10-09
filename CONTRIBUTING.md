@@ -1,6 +1,6 @@
 # Contributing to openclaw-n8n-stack
 
-Thank you for contributing. This project provides a production-ready Docker stack for OpenClaw + n8n.
+Thank you for contributing. This repository provides example Docker Compose configuration and n8n workflows for review and adaptation; deployment safety has not been verified.
 
 ## How to Contribute
 

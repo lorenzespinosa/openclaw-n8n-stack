@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 
-> Production-ready Docker stack pairing OpenClaw (AI agent gateway) with n8n (workflow automation). One command to deploy, pre-wired MCP, pre-configured multi-agent.
+> Docker Compose example combining OpenClaw, n8n and PostgreSQL. Review configuration and security before using it in your environment.
 
 ---
 
@@ -19,7 +19,7 @@ graph TB
     end
 
     OC -->|API| OR[OpenRouter / Anthropic]
-    N8N -->|Webhooks| EXT[External APIs<br/>Lawmatics · Filevine<br/>Clio · OpenPhone · Airtable]
+    N8N -->|Webhooks| EXT[Example external APIs]
 
     subgraph Agents
         ORCH[Orchestrator] -->|spawn| OPS[Ops Specialist]
@@ -35,9 +35,9 @@ graph TB
 
 **How it works:**
 - **OpenClaw** receives user messages, routes them through a multi-agent system
-- **n8n** handles deterministic tasks (API calls, data writes, lookups) via MCP -- zero tokens spent
+- **n8n** can handle selected API calls and data lookups; total model usage depends on the request path
 - **PostgreSQL** persists n8n workflows, credentials, and execution history
-- AI handles reasoning; n8n handles everything else
+- A model can interpret requests; workflows can handle defined deterministic steps
 
 ---
 
@@ -98,23 +98,9 @@ make help      # list everything
 
 ---
 
-## Architecture: The Token-Saving Pattern
+## Why route predictable tasks through workflows?
 
-The core idea: **route deterministic tasks to n8n instead of burning AI tokens.**
-
-```
-User: "Look up client John Smith"
-
-WITHOUT n8n:
-  User → AI → (AI generates API call code) → (AI parses response) → User
-  Cost: ~5,000 tokens ($0.01)
-
-WITH n8n:
-  User → AI → (MCP call to n8n) → n8n runs workflow → structured result → User
-  Cost: ~500 tokens ($0.001) + n8n execution (free)
-```
-
-Every CRM lookup, SMS send, database write, and calendar check goes through n8n -- the AI only handles reasoning, drafting, and decision-making.
+An API lookup or update can follow a defined workflow rather than being invented afresh for each request. A model may still be used upstream, and routing a step through n8n does not by itself prove cost savings. Measure the complete task, including retries, hosting and current vendor pricing.
 
 ---
 
@@ -194,29 +180,24 @@ Six workflows ship in `workflows/`. The five `MCP:` workflows expose a webhook t
 
 | Workflow | File | Trigger | Purpose |
 |----------|------|---------|---------|
-| CRM Contact Lookup | `crm-contact-lookup.json` | `POST /webhook/crm-lookup` | Fetch contact/client data |
-| SMS Send (OpenPhone) | `sms-send-openphone.json` | `POST /webhook/sms-send` | Send SMS via OpenPhone |
-| Airtable Staging Write | `airtable-staging-write.json` | `POST /webhook/staging-write` | Write records to Airtable staging |
-| Calendar Availability Check | `calendar-availability-check.json` | `POST /webhook/calendar-check` | Check calendar availability |
-| Audit Log Writer | `audit-log-writer.json` | `POST /webhook/audit-log` | Write a PII-masked audit record |
+| CRM Contact Lookup | `crm-contact-lookup.json` | `POST /webhook/mcp/crm-lookup` | Fetch contact/client data |
+| SMS Send (OpenPhone) | `sms-send-openphone.json` | `POST /webhook/mcp/sms-send` | Send SMS via OpenPhone |
+| Airtable Staging Write | `airtable-staging-write.json` | `POST /webhook/mcp/staging-write` | Write records to Airtable staging |
+| Calendar Availability Check | `calendar-availability-check.json` | `POST /webhook/mcp/calendar-check` | Check calendar availability |
+| Audit Log Writer | `audit-log-writer.json` | `POST /webhook/mcp/audit-log` | Write an example audit record; review sensitive fields |
 | Service Health Check | `service-health-check.json` | Schedule | Ping services, alert on failure |
 
-Webhook paths are the defaults baked into each JSON file; you can rename them in the n8n UI. Each workflow needs its own credentials configured before it will run.
+The table shows default production URL paths for the committed Webhook nodes when n8n uses its default `/webhook` endpoint. Confirm the Production URL displayed by n8n after configuration; test URLs and custom endpoint settings can differ. Each workflow needs its own credentials configured before it will run.
 
-> **Why route through n8n?** A deterministic task (a CRM lookup, an SMS send, a database write) costs roughly zero LLM tokens when it runs as an n8n workflow, versus thousands of tokens when the model generates the request and parses the response itself. The AI is reserved for reasoning, drafting, and decisions. Actual savings depend entirely on your call volume and model pricing.
+> **Why route through n8n?** A deterministic API step can be tested separately from a model prompt. Whether that improves cost or reliability depends on the full design and current provider terms.
 
 ---
 
-## Security
+## Security assumptions to verify
 
-- **No hardcoded secrets** -- all credentials live in `.env` (git-ignored)
-- **Token auth** on the OpenClaw gateway
-- **Filesystem sandboxing** -- agents can only access `workspace/`
-- **Tool restrictions** -- each agent has explicit allow/deny lists
-- **Exec allowlist** -- ops-agent can only run `curl`, nothing else
-- **Elevated tools disabled** -- no root/system access
-- **Non-root container user** -- OpenClaw runs as UID 1000
-- **Read-only config mount** -- `openclaw.json` mounted as `:ro`
+- Review environment variables and committed files for secrets before use.
+- Restrict gateway access, filesystem paths and tool permissions for your own deployment.
+- Test the container user and read-only mounts rather than treating this example as a security guarantee.
 
 ---
 
@@ -280,10 +261,8 @@ docker compose up -d     # Fresh start
 ---
 
 <!-- hire-cta -->
-## 👋 Built by Lorenz Espinosa
+## About Lorenz
 
-I design and ship production automation for ops-heavy businesses — webhook-driven, AI-powered systems with validation, retries, and audit logging baked in.
+I'm Lorenz Espinosa, an IT systems and automation consultant. This repository is public example material, not a record of client systems or results.
 
-**Want something like this built for your team?**
-
-[![See more work](https://img.shields.io/badge/See%20more%20work-0d1117?style=flat-square&logo=github&logoColor=7aa2f7)](https://github.com/lorenzespinosa) &nbsp;[![Start a project](https://img.shields.io/badge/Start%20a%20project%20%E2%86%92-0d1117?style=for-the-badge&logo=gmail&logoColor=9ece6a)](mailto:renzespinosa13@gmail.com?subject=Automation%20project%20inquiry&body=Hi%20Lorenz%2C%0A%0AGoal%3A%0ASystems%2Ftools%20involved%3A%0ATimeline%3A%0A) &nbsp;[![Connect on LinkedIn](https://img.shields.io/badge/Connect-0d1117?style=flat-square&logo=linkedin&logoColor=7aa2f7)](https://www.linkedin.com/in/lorenz-leslie-espinosa/)
+For a general inquiry, please leave out client names, records and confidential details: [Email](mailto:renzespinosa13@gmail.com) · [Portfolio](https://lorenzespinosa.github.io/) · [LinkedIn](https://www.linkedin.com/in/lorenz-leslie-espinosa/).

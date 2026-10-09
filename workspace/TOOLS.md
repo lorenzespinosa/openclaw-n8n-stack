@@ -2,27 +2,27 @@
 
 ## n8n Workflows (via MCP)
 
-These n8n workflows are available as MCP tools. They replace LLM calls with deterministic API calls to save tokens.
+These files describe example n8n endpoints. MCP exposure requires separate configuration and activation. Token impact has not been measured for a complete task.
 
-| Workflow | File | Webhook Path | Purpose | Tokens Saved |
-|----------|------|-------------|---------|-------------|
-| CRM Lookup | `crm-contact-lookup.json` | POST /webhook/crm-lookup | Fetch contact/client data | ~5K/call |
-| SMS Send | `sms-send-openphone.json` | POST /webhook/sms-send | Send SMS via OpenPhone (TCPA checked) | ~3K/call |
-| Airtable Write | `airtable-staging-write.json` | POST /webhook/staging-write | Write records to Airtable staging | ~4K/call |
-| Calendar Check | `calendar-availability-check.json` | POST /webhook/calendar-check | Check availability | ~3K/call |
-| Audit Log | `audit-log-writer.json` | POST /webhook/audit-log | Write PII-masked audit record | ~2K/call |
-| Health Check | `service-health-check.json` | *(scheduled, no webhook)* | Ping all services, Slack alert on failure | N/A |
+| Workflow | File | Webhook Path | Example purpose |
+|----------|------|-------------|-----------------|
+| CRM Lookup | `crm-contact-lookup.json` | POST /webhook/mcp/crm-lookup | Fetch a record from a configured CRM endpoint |
+| SMS Send | `sms-send-openphone.json` | POST /webhook/mcp/sms-send | Submit an SMS request; no independent consent or opt-out lookup in this JSON |
+| Airtable Write | `airtable-staging-write.json` | POST /webhook/mcp/staging-write | Write an example record to Airtable staging |
+| Calendar Check | `calendar-availability-check.json` | POST /webhook/mcp/calendar-check | Check availability in a configured calendar |
+| Audit Log | `audit-log-writer.json` | POST /webhook/mcp/audit-log | Write an example record; validate masking against your data |
+| Health Check | `service-health-check.json` | *(scheduled, no webhook)* | Example service check and notification |
 
-**Note:** Webhook paths are configured in n8n when you activate each workflow. The paths above are the defaults set in the workflow JSON files. MCP exposes these as tools once the n8n MCP server is connected.
+**Note:** These production paths combine n8n's default `/webhook` endpoint with the `mcp/…` path in each committed Webhook node. Confirm the displayed Production URL after configuration; test URLs and custom endpoint settings can differ. Whether MCP exposes a workflow as a tool depends on your actual server configuration and permissions.
 
 ## When to Use n8n vs AI
 
 | Task Type | Route To | Why |
 |-----------|----------|-----|
-| API call (GET/POST) | n8n | Deterministic, 0 tokens |
-| Data lookup | n8n | Structured query, 0 tokens |
-| Send message (SMS/email) | n8n | Template-based, 0 tokens |
-| Write to database | n8n | Validated schema, 0 tokens |
+| API call (GET/POST) | n8n | Deterministic step; end-to-end model use may differ |
+| Data lookup | n8n | Structured step; measure full request path |
+| Send message (SMS/email) | n8n | Template step; verify approval before send |
+| Write to database | n8n | Schema validation must be configured and tested |
 | Analyze text | AI | Requires reasoning |
 | Draft document | AI | Requires creativity |
 | Make a decision | AI | Requires judgment |
@@ -30,4 +30,4 @@ These n8n workflows are available as MCP tools. They replace LLM calls with dete
 
 ## Why Route to n8n
 
-A deterministic task costs roughly zero LLM tokens when it runs as an n8n workflow, versus thousands of tokens when the model generates the request and parses the response itself. Reserve the model for reasoning, drafting, and decisions. The per-call estimates above are illustrative; actual savings scale with your call volume and model pricing.
+A defined workflow can handle an API step without a model call at that step, but the full task may still use a model, retries, hosting, and external services. Measure the complete task before claiming cost or token savings.
