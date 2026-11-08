@@ -250,7 +250,7 @@ docker compose up -d     # Fresh start
 
 - [OpenClaw](https://github.com/openclaw/openclaw) -- AI agent gateway
 - [n8n](https://github.com/n8n-io/n8n) -- Workflow automation
-- [n8n MCP Documentation](https://docs.n8n.io/integrations/mcp/) -- MCP server setup
+- [n8n MCP Documentation](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-langchain.mcptrigger/) -- MCP server setup
 
 ---
 
